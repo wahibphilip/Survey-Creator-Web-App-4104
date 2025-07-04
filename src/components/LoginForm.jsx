@@ -27,18 +27,19 @@ const LoginForm = () => {
   };
 
   const handleInputChange = (e) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
   };
 
   const handleDemoLogin = (email, password) => {
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       email,
-      password,
-      name: ''
-    });
+      password
+    }));
   };
 
   const demoAccounts = [
@@ -84,7 +85,7 @@ const LoginForm = () => {
                   onChange={handleInputChange}
                   placeholder="Enter your full name"
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
+                  required={!isLogin}
                 />
               </div>
             </div>
@@ -150,7 +151,10 @@ const LoginForm = () => {
           <p className="text-gray-600">
             {isLogin ? "Don't have an account?" : "Already have an account?"}
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setFormData({ email: '', password: '', name: '' });
+              }}
               className="text-blue-600 hover:text-blue-700 ml-1 font-medium"
             >
               {isLogin ? 'Sign Up' : 'Sign In'}
@@ -164,6 +168,7 @@ const LoginForm = () => {
             {demoAccounts.map((account, index) => (
               <button
                 key={index}
+                type="button"
                 onClick={() => handleDemoLogin(account.email, account.password)}
                 className="w-full text-left p-2 text-xs bg-white rounded border hover:bg-gray-50 transition-colors"
               >

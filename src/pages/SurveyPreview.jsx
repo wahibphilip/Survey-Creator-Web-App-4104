@@ -21,6 +21,19 @@ const SurveyPreview = () => {
     if (id) {
       const surveyData = getSurveyById(id);
       setSurvey(surveyData);
+      
+      // Initialize responses state with empty values for all questions
+      if (surveyData?.questions) {
+        const initialResponses = {};
+        surveyData.questions.forEach(question => {
+          if (question.type === 'checkbox') {
+            initialResponses[question.id] = [];
+          } else {
+            initialResponses[question.id] = '';
+          }
+        });
+        setResponses(initialResponses);
+      }
     }
   }, [id, getSurveyById]);
 
@@ -33,8 +46,20 @@ const SurveyPreview = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     
+    // Validate required fields
+    const requiredQuestions = survey?.questions?.filter(q => q.required) || [];
+    const missingRequired = requiredQuestions.filter(q => {
+      const response = responses[q.id];
+      return !response || (Array.isArray(response) && response.length === 0);
+    });
+
+    if (missingRequired.length > 0) {
+      alert(`Please answer all required questions: ${missingRequired.map(q => q.title).join(', ')}`);
+      return;
+    }
+
+    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     submitResponse(id, {
       ...responses,
       timeSpent,
@@ -65,6 +90,7 @@ const SurveyPreview = () => {
             onChange={(e) => handleResponseChange(question.id, e.target.value)}
             placeholder="Enter your answer"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required={question.required}
           />
         );
 
@@ -75,7 +101,8 @@ const SurveyPreview = () => {
             onChange={(e) => handleResponseChange(question.id, e.target.value)}
             placeholder="Enter your answer"
             rows="4"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+            required={question.required}
           />
         );
 
@@ -83,7 +110,7 @@ const SurveyPreview = () => {
         return (
           <div className="space-y-3">
             {question.options?.map((option, index) => (
-              <label key={index} className="flex items-center space-x-3 cursor-pointer">
+              <label key={index} className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
                 <input
                   type="radio"
                   name={`question-${question.id}`}
@@ -91,6 +118,7 @@ const SurveyPreview = () => {
                   checked={response === option}
                   onChange={(e) => handleResponseChange(question.id, e.target.value)}
                   className="text-blue-600 focus:ring-blue-500"
+                  required={question.required}
                 />
                 <span className="text-gray-700">{option}</span>
               </label>
@@ -102,7 +130,7 @@ const SurveyPreview = () => {
         return (
           <div className="space-y-3">
             {question.options?.map((option, index) => (
-              <label key={index} className="flex items-center space-x-3 cursor-pointer">
+              <label key={index} className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
                 <input
                   type="checkbox"
                   value={option}
@@ -131,15 +159,18 @@ const SurveyPreview = () => {
                 key={rating}
                 type="button"
                 onClick={() => handleResponseChange(question.id, rating)}
-                className={`w-10 h-10 rounded-full border-2 transition-colors ${
+                className={`w-12 h-12 rounded-full border-2 transition-colors font-semibold ${
                   response === rating
                     ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'border-gray-300 text-gray-600 hover:border-blue-400'
+                    : 'border-gray-300 text-gray-600 hover:border-blue-400 hover:bg-blue-50'
                 }`}
               >
                 {rating}
               </button>
             ))}
+            <div className="flex items-center ml-4 text-sm text-gray-500">
+              {response && `Selected: ${response}/5`}
+            </div>
           </div>
         );
 
@@ -149,6 +180,7 @@ const SurveyPreview = () => {
             value={response}
             onChange={(e) => handleResponseChange(question.id, e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required={question.required}
           >
             <option value="">Select an option</option>
             {question.options?.map((option, index) => (
@@ -160,7 +192,11 @@ const SurveyPreview = () => {
         );
 
       default:
-        return null;
+        return (
+          <div className="text-gray-500 italic">
+            Unsupported question type: {question.type}
+          </div>
+        );
     }
   };
 
@@ -179,7 +215,6 @@ const SurveyPreview = () => {
             <p className="text-gray-600 mt-1">See how your survey will look to respondents</p>
           </div>
         </div>
-        
         <div className="flex space-x-3">
           <button
             onClick={() => navigate(`/analytics/${id}`)}
@@ -217,7 +252,7 @@ const SurveyPreview = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="p-6 border border-gray-200 rounded-lg"
+              className="p-6 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
             >
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -229,7 +264,14 @@ const SurveyPreview = () => {
                 )}
               </div>
               
-              {renderQuestion(question)}
+              <div className="mt-4">
+                {renderQuestion(question)}
+              </div>
+
+              {/* Debug info - remove in production */}
+              <div className="mt-2 text-xs text-gray-400">
+                Current value: {JSON.stringify(responses[question.id])}
+              </div>
             </motion.div>
           ))}
 
@@ -237,7 +279,7 @@ const SurveyPreview = () => {
             <div className="text-center pt-8">
               <button
                 type="submit"
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg flex items-center space-x-2 mx-auto transition-colors"
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg flex items-center space-x-2 mx-auto transition-colors shadow-lg hover:shadow-xl"
               >
                 <SafeIcon icon={FiCheck} />
                 <span>Submit Survey</span>
